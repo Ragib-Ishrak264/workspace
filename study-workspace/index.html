@@ -1,0 +1,107 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Study Workspace</title>
+    <link rel="stylesheet" href="styles.css" />
+  </head>
+  <body>
+    <aside class="sidebar">
+      <div>
+        <p class="eyebrow">Personal hub</p>
+        <h1>Study Workspace</h1>
+      </div>
+      <nav aria-label="Workspace sections">
+        <a href="#pdfs">PDFs</a>
+        <a href="#links">Links</a>
+        <a href="#apps">Apps</a>
+        <a href="#notes">Notes</a>
+      </nav>
+      <div class="stats">
+        <div>
+          <span id="pdfCount">0</span>
+          <small>PDFs</small>
+        </div>
+        <div>
+          <span id="resourceCount">0</span>
+          <small>Resources</small>
+        </div>
+      </div>
+    </aside>
+
+    <main>
+      <section class="topbar" aria-label="Workspace overview">
+        <div>
+          <p class="eyebrow">Today</p>
+          <h2>Keep your study materials in one calm place.</h2>
+        </div>
+        <button id="exportButton" class="ghost-button" type="button">Export backup</button>
+      </section>
+
+      <section id="pdfs" class="panel">
+        <div class="section-heading">
+          <div>
+            <p class="eyebrow">Library</p>
+            <h2>PDFs</h2>
+          </div>
+          <label class="primary-button">
+            Add PDFs
+            <input id="pdfInput" type="file" accept="application/pdf" multiple />
+          </label>
+        </div>
+        <div id="pdfList" class="grid"></div>
+      </section>
+
+      <section id="links" class="panel">
+        <div class="section-heading">
+          <div>
+            <p class="eyebrow">Bookmarks</p>
+            <h2>Links</h2>
+          </div>
+        </div>
+        <form id="linkForm" class="resource-form">
+          <input id="linkTitle" type="text" placeholder="Title" required />
+          <input id="linkUrl" type="url" placeholder="https://example.com" required />
+          <button class="primary-button" type="submit">Save link</button>
+        </form>
+        <div id="linkList" class="list"></div>
+      </section>
+
+      <section id="apps" class="panel">
+        <div class="section-heading">
+          <div>
+            <p class="eyebrow">Tools</p>
+            <h2>Apps</h2>
+          </div>
+        </div>
+        <form id="appForm" class="resource-form">
+          <input id="appTitle" type="text" placeholder="App name" required />
+          <input id="appUrl" type="url" placeholder="https://app.example.com" required />
+          <button class="primary-button" type="submit">Save app</button>
+        </form>
+        <div id="appList" class="list"></div>
+      </section>
+
+      <section id="notes" class="panel">
+        <div class="section-heading">
+          <div>
+            <p class="eyebrow">Scratchpad</p>
+            <h2>Study notes</h2>
+          </div>
+          <span id="savedStatus" aria-live="polite">Saved</span>
+        </div>
+        <textarea id="notesBox" placeholder="Plan your sessions, paste formulas, collect reminders..."></textarea>
+      </section>
+    </main>
+
+    <template id="emptyTemplate">
+      <div class="empty-state">
+        <strong>Nothing saved yet</strong>
+        <span>Add your first item and it will stay here in this browser.</span>
+      </div>
+    </template>
+
+    <script src="app.js"></script>
+  </body>
+</html>
