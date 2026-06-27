@@ -34,9 +34,26 @@
       <section class="topbar" aria-label="Workspace overview">
         <div>
           <p class="eyebrow">Today</p>
-          <h2>Keep your study materials in one calm place.</h2>
+          <h2 id="workspaceName">Study Workspace</h2>
+          <p id="syncStatus" class="sync-status">Connecting to backend...</p>
         </div>
         <button id="exportButton" class="ghost-button" type="button">Export backup</button>
+      </section>
+
+      <section class="panel workspace-panel">
+        <div class="section-heading">
+          <div>
+            <p class="eyebrow">Saved workspace</p>
+            <h2>Choose or create</h2>
+          </div>
+        </div>
+        <div class="workspace-controls">
+          <select id="workspaceSelect" aria-label="Select workspace"></select>
+          <form id="workspaceForm" class="workspace-form">
+            <input type="text" placeholder="New workspace name" required />
+            <button class="primary-button" type="submit">Create workspace</button>
+          </form>
+        </div>
       </section>
 
       <section id="pdfs" class="panel">

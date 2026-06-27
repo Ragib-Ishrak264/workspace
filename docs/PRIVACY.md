@@ -1,15 +1,16 @@
 # Privacy and Storage Notes
 
-Study Workspace has no backend server and does not send your saved study data anywhere by itself.
+Study Workspace uses a local backend server and does not send your saved study data to an external service by itself.
 
 ## Where Data Is Stored
 
-The app stores data in your browser:
+The app stores data on your computer:
 
-- PDFs: IndexedDB
-- Links: localStorage
-- App shortcuts: localStorage
-- Study notes: localStorage
+- PDFs: `server/data/uploads`
+- Workspace records: `server/data/workspaces.json`
+- Links: `server/data/workspaces.json`
+- App shortcuts: `server/data/workspaces.json`
+- Study notes: `server/data/workspaces.json`
 
 ## What Is Not Synced
 
@@ -20,11 +21,11 @@ Saved PDFs, links, app shortcuts, and notes do not automatically sync to:
 - Other browsers
 - Cloud storage
 
-If you clear browser data, use a different browser, or open the app from a different domain, your saved items may not appear.
+If you move computers, you need to copy the project folder, including `server/data`, to keep your saved workspace data.
 
 ## Backups
 
-The `Export backup` button downloads a JSON backup of text-based data and PDF metadata. It does not export the actual PDF file contents.
+The `Export backup` button downloads a JSON backup of the current workspace record. PDF files remain stored in `server/data/uploads`.
 
 ## Sensitive Materials
 

@@ -1,0 +1,17 @@
+{
+  "name": "study-workspace",
+  "version": "1.0.0",
+  "description": "A simple study workspace with a local backend for saved PDFs, links, apps, and notes.",
+  "main": "server/server.js",
+  "scripts": {
+    "start": "node server/server.js"
+  },
+  "keywords": [
+    "study",
+    "workspace",
+    "pdfs",
+    "notes"
+  ],
+  "author": "Ragib Ishrak",
+  "license": "MIT"
+}

@@ -7,7 +7,7 @@ Thanks for improving Study Workspace.
 Run the app locally from the repository root:
 
 ```powershell
-python -m http.server 5178 --bind 127.0.0.1 --directory study-workspace
+npm start
 ```
 
 Open:
@@ -20,7 +20,7 @@ http://127.0.0.1:5178
 
 - Keep the app dependency-free unless a dependency clearly adds value.
 - Prefer readable HTML, CSS, and JavaScript over clever abstractions.
-- Keep browser storage behavior understandable and documented.
+- Keep backend storage behavior understandable and documented.
 - Test changes manually in a browser before committing.
 
 ## Suggested Manual Checks

@@ -1,9 +1,3 @@
-const DB_NAME = "study-workspace";
-const DB_VERSION = 1;
-const STORE_NAME = "pdfs";
-const RESOURCE_KEY = "study-workspace-resources";
-const NOTES_KEY = "study-workspace-notes";
-
 const pdfInput = document.querySelector("#pdfInput");
 const pdfList = document.querySelector("#pdfList");
 const linkForm = document.querySelector("#linkForm");
@@ -16,64 +10,30 @@ const exportButton = document.querySelector("#exportButton");
 const pdfCount = document.querySelector("#pdfCount");
 const resourceCount = document.querySelector("#resourceCount");
 const emptyTemplate = document.querySelector("#emptyTemplate");
+const workspaceName = document.querySelector("#workspaceName");
+const workspaceSelect = document.querySelector("#workspaceSelect");
+const workspaceForm = document.querySelector("#workspaceForm");
+const syncStatus = document.querySelector("#syncStatus");
 
-let db;
-let resources = loadResources();
+let currentWorkspace = null;
+let saveNotesTimer;
 
-function openDatabase() {
-  return new Promise((resolve, reject) => {
-    const request = indexedDB.open(DB_NAME, DB_VERSION);
-
-    request.onupgradeneeded = () => {
-      const database = request.result;
-      if (!database.objectStoreNames.contains(STORE_NAME)) {
-        database.createObjectStore(STORE_NAME, { keyPath: "id" });
-      }
-    };
-
-    request.onsuccess = () => resolve(request.result);
-    request.onerror = () => reject(request.error);
+async function api(path, options = {}) {
+  const response = await fetch(path, {
+    headers: {
+      "Content-Type": "application/json",
+      ...options.headers,
+    },
+    ...options,
   });
+
+  const data = await response.json();
+  if (!response.ok) throw new Error(data.error || "Request failed.");
+  return data;
 }
 
-function transaction(storeMode = "readonly") {
-  return db.transaction(STORE_NAME, storeMode).objectStore(STORE_NAME);
-}
-
-function getAllPdfs() {
-  return new Promise((resolve, reject) => {
-    const request = transaction().getAll();
-    request.onsuccess = () => resolve(request.result.sort((a, b) => b.addedAt - a.addedAt));
-    request.onerror = () => reject(request.error);
-  });
-}
-
-function savePdf(record) {
-  return new Promise((resolve, reject) => {
-    const request = transaction("readwrite").put(record);
-    request.onsuccess = () => resolve();
-    request.onerror = () => reject(request.error);
-  });
-}
-
-function deletePdf(id) {
-  return new Promise((resolve, reject) => {
-    const request = transaction("readwrite").delete(id);
-    request.onsuccess = () => resolve();
-    request.onerror = () => reject(request.error);
-  });
-}
-
-function loadResources() {
-  try {
-    return JSON.parse(localStorage.getItem(RESOURCE_KEY)) ?? { links: [], apps: [] };
-  } catch {
-    return { links: [], apps: [] };
-  }
-}
-
-function persistResources() {
-  localStorage.setItem(RESOURCE_KEY, JSON.stringify(resources));
+function setStatus(message) {
+  syncStatus.textContent = message;
 }
 
 function emptyState() {
@@ -85,9 +45,9 @@ function formatBytes(bytes) {
   return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
 }
 
-async function renderPdfs() {
-  const pdfs = await getAllPdfs();
+function renderPdfs() {
   pdfList.replaceChildren();
+  const pdfs = currentWorkspace?.pdfs || [];
 
   if (!pdfs.length) {
     pdfList.append(emptyState());
@@ -104,21 +64,22 @@ async function renderPdfs() {
         </div>
       </div>
       <div class="item-actions">
-        <button class="small-button open" type="button">Open</button>
+        <a class="small-button open" target="_blank" rel="noopener">Open</a>
         <button class="small-button delete" type="button">Delete</button>
       </div>
     `;
 
     item.querySelector("strong").textContent = pdf.name;
     item.querySelector("span").textContent = `${formatBytes(pdf.size)} - ${new Date(pdf.addedAt).toLocaleDateString()}`;
-    item.querySelector(".open").addEventListener("click", () => {
-      const url = URL.createObjectURL(pdf.file);
-      window.open(url, "_blank", "noopener");
-      setTimeout(() => URL.revokeObjectURL(url), 60_000);
-    });
+    item.querySelector(".open").href = pdf.url;
     item.querySelector(".delete").addEventListener("click", async () => {
-      await deletePdf(pdf.id);
-      await renderPdfs();
+      setStatus("Deleting PDF...");
+      const data = await api(`/api/workspaces/${currentWorkspace.id}/pdfs/${pdf.id}`, {
+        method: "DELETE",
+      });
+      currentWorkspace = data.workspace;
+      renderWorkspace();
+      setStatus("Saved to backend");
     });
 
     pdfList.append(item);
@@ -128,7 +89,7 @@ async function renderPdfs() {
 }
 
 function renderResources(type, container) {
-  const items = resources[type];
+  const items = currentWorkspace?.[type] || [];
   container.replaceChildren();
 
   if (!items.length) {
@@ -152,10 +113,9 @@ function renderResources(type, container) {
     const anchor = item.querySelector("a");
     anchor.href = resource.url;
     anchor.textContent = resource.url;
-    item.querySelector("button").addEventListener("click", () => {
-      resources[type] = resources[type].filter((entry) => entry.id !== resource.id);
-      persistResources();
-      renderAllResources();
+    item.querySelector("button").addEventListener("click", async () => {
+      currentWorkspace[type] = currentWorkspace[type].filter((entry) => entry.id !== resource.id);
+      await saveResources();
     });
 
     container.append(item);
@@ -165,60 +125,137 @@ function renderResources(type, container) {
 function renderAllResources() {
   renderResources("links", linkList);
   renderResources("apps", appList);
-  resourceCount.textContent = String(resources.links.length + resources.apps.length);
+  resourceCount.textContent = String((currentWorkspace?.links.length || 0) + (currentWorkspace?.apps.length || 0));
 }
 
-function handleResourceForm(event, type) {
+function renderWorkspace() {
+  workspaceName.textContent = currentWorkspace?.name || "No workspace selected";
+  notesBox.value = currentWorkspace?.notes || "";
+  renderPdfs();
+  renderAllResources();
+}
+
+async function saveResources() {
+  setStatus("Saving...");
+  const data = await api(`/api/workspaces/${currentWorkspace.id}/resources`, {
+    method: "PUT",
+    body: JSON.stringify({
+      links: currentWorkspace.links,
+      apps: currentWorkspace.apps,
+    }),
+  });
+  currentWorkspace = data.workspace;
+  renderAllResources();
+  setStatus("Saved to backend");
+}
+
+async function handleResourceForm(event, type) {
   event.preventDefault();
   const form = event.currentTarget;
   const [titleInput, urlInput] = form.querySelectorAll("input");
 
-  resources[type].unshift({
+  currentWorkspace[type].unshift({
     id: crypto.randomUUID(),
     title: titleInput.value.trim(),
     url: urlInput.value.trim(),
-    addedAt: Date.now(),
+    addedAt: new Date().toISOString(),
   });
 
-  persistResources();
   form.reset();
-  renderAllResources();
+  await saveResources();
+}
+
+async function refreshWorkspaceList(selectedId) {
+  const data = await api("/api/workspaces");
+  workspaceSelect.replaceChildren();
+
+  data.workspaces.forEach((workspace) => {
+    const option = document.createElement("option");
+    option.value = workspace.id;
+    option.textContent = workspace.name;
+    workspaceSelect.append(option);
+  });
+
+  if (selectedId) workspaceSelect.value = selectedId;
+  return data.workspaces;
+}
+
+async function loadWorkspace(id) {
+  const data = await api(`/api/workspaces/${id}`);
+  currentWorkspace = data.workspace;
+  renderWorkspace();
+  setStatus("Saved to backend");
+}
+
+async function createWorkspace(name) {
+  const data = await api("/api/workspaces", {
+    method: "POST",
+    body: JSON.stringify({ name }),
+  });
+  currentWorkspace = data.workspace;
+  await refreshWorkspaceList(currentWorkspace.id);
+  renderWorkspace();
+  setStatus("Saved to backend");
+}
+
+function fileToBase64(file) {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => resolve(String(reader.result).split(",")[1]);
+    reader.onerror = () => reject(reader.error);
+    reader.readAsDataURL(file);
+  });
 }
 
 pdfInput.addEventListener("change", async () => {
   const files = [...pdfInput.files];
   for (const file of files) {
-    await savePdf({
-      id: crypto.randomUUID(),
-      name: file.name,
-      size: file.size,
-      addedAt: Date.now(),
-      file,
+    setStatus(`Uploading ${file.name}...`);
+    const data = await api(`/api/workspaces/${currentWorkspace.id}/pdfs`, {
+      method: "POST",
+      body: JSON.stringify({
+        name: file.name,
+        data: await fileToBase64(file),
+      }),
     });
+    currentWorkspace = data.workspace;
   }
   pdfInput.value = "";
-  await renderPdfs();
+  renderWorkspace();
+  setStatus("Saved to backend");
 });
 
 linkForm.addEventListener("submit", (event) => handleResourceForm(event, "links"));
 appForm.addEventListener("submit", (event) => handleResourceForm(event, "apps"));
 
-notesBox.value = localStorage.getItem(NOTES_KEY) ?? "";
 notesBox.addEventListener("input", () => {
   savedStatus.textContent = "Saving...";
-  localStorage.setItem(NOTES_KEY, notesBox.value);
-  window.clearTimeout(notesBox.saveTimer);
-  notesBox.saveTimer = window.setTimeout(() => {
+  setStatus("Saving...");
+  window.clearTimeout(saveNotesTimer);
+  saveNotesTimer = window.setTimeout(async () => {
+    const data = await api(`/api/workspaces/${currentWorkspace.id}/notes`, {
+      method: "PUT",
+      body: JSON.stringify({ notes: notesBox.value }),
+    });
+    currentWorkspace = data.workspace;
     savedStatus.textContent = "Saved";
+    setStatus("Saved to backend");
   }, 350);
 });
 
-exportButton.addEventListener("click", async () => {
+workspaceSelect.addEventListener("change", () => loadWorkspace(workspaceSelect.value));
+
+workspaceForm.addEventListener("submit", async (event) => {
+  event.preventDefault();
+  const input = workspaceForm.querySelector("input");
+  await createWorkspace(input.value.trim());
+  workspaceForm.reset();
+});
+
+exportButton.addEventListener("click", () => {
   const backup = {
     exportedAt: new Date().toISOString(),
-    resources,
-    notes: notesBox.value,
-    pdfs: (await getAllPdfs()).map(({ name, size, addedAt }) => ({ name, size, addedAt })),
+    workspace: currentWorkspace,
   };
   const blob = new Blob([JSON.stringify(backup, null, 2)], { type: "application/json" });
   const url = URL.createObjectURL(blob);
@@ -229,13 +266,20 @@ exportButton.addEventListener("click", async () => {
   URL.revokeObjectURL(url);
 });
 
-openDatabase()
-  .then((database) => {
-    db = database;
-    renderPdfs();
-    renderAllResources();
-  })
-  .catch(() => {
-    pdfList.innerHTML = '<div class="empty-state"><strong>PDF storage is unavailable</strong><span>Your browser blocked local database access.</span></div>';
-    renderAllResources();
-  });
+async function start() {
+  try {
+    setStatus("Connecting to backend...");
+    const workspaces = await refreshWorkspaceList();
+
+    if (workspaces.length) {
+      await loadWorkspace(workspaces[0].id);
+    } else {
+      await createWorkspace("My Study Workspace");
+    }
+  } catch (error) {
+    setStatus("Backend unavailable");
+    pdfList.innerHTML = '<div class="empty-state"><strong>Backend unavailable</strong><span>Start the Node server with npm start.</span></div>';
+  }
+}
+
+start();

@@ -2,15 +2,16 @@
 
 A simple browser-based study hub for keeping PDFs, useful links, app shortcuts, and notes in one place.
 
-The app is intentionally lightweight: it runs as a static website with plain HTML, CSS, and JavaScript. There is no account system, backend server, build step, or external dependency.
+The app is intentionally lightweight: it uses plain HTML, CSS, JavaScript, and a small Node.js backend with no external dependencies.
 
 ## Features
 
 - Save PDF files in the browser and reopen them later.
+- Create saved study workspaces.
 - Save study links and app shortcuts.
 - Keep quick study notes with autosave.
 - Export a JSON backup of links, apps, notes, and PDF metadata.
-- Works locally from a small static web server.
+- Save data to the local backend so it can be restored after restarting the app.
 - Responsive layout for desktop and mobile screens.
 
 ## Project Structure
@@ -18,12 +19,18 @@ The app is intentionally lightweight: it runs as a static website with plain HTM
 ```text
 .
 ├── README.md
+├── package.json
 ├── LICENSE
 ├── CONTRIBUTING.md
 ├── docs
 │   ├── DEPLOYMENT.md
 │   ├── PRIVACY.md
 │   └── USAGE.md
+├── server
+│   ├── server.js
+│   └── data
+│       ├── workspaces.json
+│       └── uploads
 └── study-workspace
     ├── app.js
     ├── index.html
@@ -35,25 +42,25 @@ The app is intentionally lightweight: it runs as a static website with plain HTM
 From the repository root:
 
 ```powershell
-python -m http.server 5178 --bind 127.0.0.1 --directory study-workspace
+npm start
 ```
 
 Then open:
 
 ```text
-http://127.0.0.1:5178
+http://127.0.0.1:5180
 ```
 
-You can also open `study-workspace/index.html` directly, but using a local server is recommended because browser storage features are more reliable from `localhost`.
+Use the Node server instead of opening `study-workspace/index.html` directly. The frontend now talks to backend API routes such as `/api/workspaces`.
 
 ## Important Storage Note
 
-The app stores data in your current browser on your current device:
+The app stores workspace data on your computer through the backend:
 
-- PDFs are stored in IndexedDB.
-- Links, app shortcuts, and notes are stored in localStorage.
+- PDFs are stored in `server/data/uploads`.
+- Workspace records, links, app shortcuts, and notes are stored in `server/data/workspaces.json`.
 
-This means your saved materials do not automatically sync to GitHub or another device. See [docs/PRIVACY.md](docs/PRIVACY.md) for details.
+This means your saved materials survive browser restarts and server restarts, but they still do not automatically sync to GitHub or another device. See [docs/PRIVACY.md](docs/PRIVACY.md) for details.
 
 ## Documentation
 
